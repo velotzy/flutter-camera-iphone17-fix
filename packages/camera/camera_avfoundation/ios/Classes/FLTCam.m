@@ -1126,41 +1126,58 @@ NSString *const errorMethod = @"error";
 }
 
 - (OSType)getSupportedVideoFormat {
+  // Get available pixel formats from the video output
+  AVCaptureVideoDataOutput *tempOutput = [[AVCaptureVideoDataOutput alloc] init];
+  NSArray *availableFormats = [tempOutput availableVideoCVPixelFormatTypes];
+  
+  NSLog(@"=== CAMERA PIXEL FORMAT DEBUG ===");
+  NSLog(@"Device: %@", [[UIDevice currentDevice] model]);
+  NSLog(@"iOS Version: %@", [[UIDevice currentDevice] systemVersion]);
+  NSLog(@"Available pixel formats: %@", availableFormats);
+  
   // List of preferred pixel formats in order of preference
-  // Note: kCVPixelFormatType_32BGRA is moved to the end since it's not supported on iPhone 17
+  // We prioritize formats that are commonly supported across iOS devices
   OSType preferredFormats[] = {
     kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
     kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
     kCVPixelFormatType_32RGBA,
     kCVPixelFormatType_422YpCbCr8,
     kCVPixelFormatType_422YpCbCr8_yuvs,
-    kCVPixelFormatType_32BGRA  // Moved to end as fallback for older devices
+    kCVPixelFormatType_32BGRA
   };
   
-  // Get available pixel formats from the video output
-  AVCaptureVideoDataOutput *tempOutput = [[AVCaptureVideoDataOutput alloc] init];
-  NSArray *availableFormats = [tempOutput availableVideoCVPixelFormatTypes];
-  
-  NSLog(@"Available pixel formats: %@", availableFormats);
+  const char* formatNames[] = {
+    "kCVPixelFormatType_420YpCbCr8BiPlanarFullRange",
+    "kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange", 
+    "kCVPixelFormatType_32RGBA",
+    "kCVPixelFormatType_422YpCbCr8",
+    "kCVPixelFormatType_422YpCbCr8_yuvs",
+    "kCVPixelFormatType_32BGRA"
+  };
   
   // Find the first preferred format that's available
   for (int i = 0; i < sizeof(preferredFormats) / sizeof(preferredFormats[0]); i++) {
     NSNumber *formatNumber = @(preferredFormats[i]);
     if ([availableFormats containsObject:formatNumber]) {
-      NSLog(@"Using pixel format: %d", preferredFormats[i]);
+      NSLog(@"✅ Selected pixel format: %d (%s)", preferredFormats[i], formatNames[i]);
+      NSLog(@"=== END CAMERA PIXEL FORMAT DEBUG ===");
       return preferredFormats[i];
+    } else {
+      NSLog(@"❌ Format not available: %d (%s)", preferredFormats[i], formatNames[i]);
     }
   }
   
-  // Fallback to the first available format
+  // Fallback to the first available format (this is the safest approach)
   if (availableFormats.count > 0) {
     NSNumber *firstFormat = availableFormats[0];
-    NSLog(@"Using fallback pixel format: %@", firstFormat);
+    NSLog(@"⚠️  Using fallback pixel format: %@", firstFormat);
+    NSLog(@"=== END CAMERA PIXEL FORMAT DEBUG ===");
     return [firstFormat intValue];
   }
   
   // This should never happen, but if it does, we'll use a basic format
-  NSLog(@"ERROR: No supported pixel formats found, using basic format");
+  NSLog(@"🚨 ERROR: No supported pixel formats found, using emergency fallback");
+  NSLog(@"=== END CAMERA PIXEL FORMAT DEBUG ===");
   return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
 }
 @end
