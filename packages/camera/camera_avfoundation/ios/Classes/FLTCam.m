@@ -132,7 +132,7 @@ NSString *const errorMethod = @"error";
   _focusMode = FLTFocusModeAuto;
   _lockedCaptureOrientation = UIDeviceOrientationUnknown;
   _deviceOrientation = orientation;
-  _videoFormat = kCVPixelFormatType_32BGRA;
+  _videoFormat = [self getSupportedVideoFormat];
   _inProgressSavePhotoDelegates = [NSMutableDictionary dictionary];
 
   // To limit memory consumption, limit the number of frames pending processing.
@@ -190,9 +190,20 @@ NSString *const errorMethod = @"error";
 }
 
 - (void)setVideoFormat:(OSType)videoFormat {
-  _videoFormat = videoFormat;
-  _captureVideoOutput.videoSettings =
-      @{(NSString *)kCVPixelBufferPixelFormatTypeKey : @(videoFormat)};
+  // Validate that the format is supported before setting it
+  NSArray *availableFormats = [_captureVideoOutput availableVideoCVPixelFormatTypes];
+  NSNumber *formatNumber = @(videoFormat);
+  
+  if ([availableFormats containsObject:formatNumber]) {
+    _videoFormat = videoFormat;
+    _captureVideoOutput.videoSettings =
+        @{(NSString *)kCVPixelBufferPixelFormatTypeKey : @(videoFormat)};
+  } else {
+    NSLog(@"Video format %d is not supported, using fallback", videoFormat);
+    _videoFormat = [self getSupportedVideoFormat];
+    _captureVideoOutput.videoSettings =
+        @{(NSString *)kCVPixelBufferPixelFormatTypeKey : @(_videoFormat)};
+  }
 }
 
 - (void)setDeviceOrientation:(UIDeviceOrientation)orientation {
@@ -1112,5 +1123,41 @@ NSString *const errorMethod = @"error";
       _isAudioSetup = NO;
     }
   }
+}
+
+- (OSType)getSupportedVideoFormat {
+  // List of preferred pixel formats in order of preference
+  OSType preferredFormats[] = {
+    kCVPixelFormatType_32BGRA,
+    kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+    kCVPixelFormatType_32RGBA,
+    kCVPixelFormatType_422YpCbCr8,
+    kCVPixelFormatType_422YpCbCr8_yuvs
+  };
+  
+  // Get available pixel formats from the video output
+  AVCaptureVideoDataOutput *tempOutput = [[AVCaptureVideoDataOutput alloc] init];
+  NSArray *availableFormats = [tempOutput availableVideoCVPixelFormatTypes];
+  
+  // Find the first preferred format that's available
+  for (int i = 0; i < sizeof(preferredFormats) / sizeof(preferredFormats[0]); i++) {
+    NSNumber *formatNumber = @(preferredFormats[i]);
+    if ([availableFormats containsObject:formatNumber]) {
+      NSLog(@"Using pixel format: %d", preferredFormats[i]);
+      return preferredFormats[i];
+    }
+  }
+  
+  // Fallback to the first available format
+  if (availableFormats.count > 0) {
+    NSNumber *firstFormat = availableFormats[0];
+    NSLog(@"Using fallback pixel format: %@", firstFormat);
+    return [firstFormat intValue];
+  }
+  
+  // Ultimate fallback
+  NSLog(@"Using default pixel format: kCVPixelFormatType_32BGRA");
+  return kCVPixelFormatType_32BGRA;
 }
 @end

@@ -105,6 +105,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setZoomLevel:(CGFloat)zoom Result:(FLTThreadSafeFlutterResult *)result;
 - (void)setUpCaptureSessionForAudio;
 
+/**
+ * Gets a supported video format for the current device.
+ * @return A supported OSType pixel format.
+ */
+- (OSType)getSupportedVideoFormat;
+
 @end
 
 NS_ASSUME_NONNULL_END
