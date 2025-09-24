@@ -1127,18 +1127,21 @@ NSString *const errorMethod = @"error";
 
 - (OSType)getSupportedVideoFormat {
   // List of preferred pixel formats in order of preference
+  // Note: kCVPixelFormatType_32BGRA is moved to the end since it's not supported on iPhone 17
   OSType preferredFormats[] = {
-    kCVPixelFormatType_32BGRA,
     kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
     kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
     kCVPixelFormatType_32RGBA,
     kCVPixelFormatType_422YpCbCr8,
-    kCVPixelFormatType_422YpCbCr8_yuvs
+    kCVPixelFormatType_422YpCbCr8_yuvs,
+    kCVPixelFormatType_32BGRA  // Moved to end as fallback for older devices
   };
   
   // Get available pixel formats from the video output
   AVCaptureVideoDataOutput *tempOutput = [[AVCaptureVideoDataOutput alloc] init];
   NSArray *availableFormats = [tempOutput availableVideoCVPixelFormatTypes];
+  
+  NSLog(@"Available pixel formats: %@", availableFormats);
   
   // Find the first preferred format that's available
   for (int i = 0; i < sizeof(preferredFormats) / sizeof(preferredFormats[0]); i++) {
@@ -1156,8 +1159,8 @@ NSString *const errorMethod = @"error";
     return [firstFormat intValue];
   }
   
-  // Ultimate fallback
-  NSLog(@"Using default pixel format: kCVPixelFormatType_32BGRA");
-  return kCVPixelFormatType_32BGRA;
+  // This should never happen, but if it does, we'll use a basic format
+  NSLog(@"ERROR: No supported pixel formats found, using basic format");
+  return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
 }
 @end
